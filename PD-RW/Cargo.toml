@@ -1,0 +1,10 @@
+[package]
+name = "PD-RW"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+nalgebra = "0.34.1"
+ndarray = "0.16.1"
+plotters = "0.3.7"
+xdevs = "0.4.0"
