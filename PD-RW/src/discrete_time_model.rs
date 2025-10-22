@@ -23,6 +23,7 @@ impl DiscreteTimeModel {
         let mut coupled = Coupled::new(name);
         let h = h.unwrap_or(0.01);
         let time = 0.;
+        let margin_ratio = 0.1;
         // Target quaternion (identity orientation)
         let q_target = Quaternion(nalgebra::Quaternion::identity());
 
@@ -57,7 +58,7 @@ impl DiscreteTimeModel {
         let controller = Controller::new("Controller", time, q_target, kp, kd, max_torque_rw);
         let rw = RW::new("ReationWheels", time, rw_speeds_initial, i_rw, max_speed_rw, h,);
         let sd = SatelliteDynamics::new("SatelliteDynamics", time, w0, q0, h, i_sat);
-        let transducer = Box::new(Transducer::new("Transducer"));
+        let transducer = Box::new(Transducer::new("Transducer", margin_ratio));
         let transducer_ptr: *const Transducer = &*transducer;
 
         // Add components to model
