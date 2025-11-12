@@ -1,0 +1,10 @@
+[package]
+name = "PD-RW-no-std"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libm = "0.2.15"
+nalgebra = { version = "0.34.1", default-features = false, features = ["libm"] }
+plotters = "0.3.7"
+xdevs-no-std = { version = "0.3.0", features = ["std"] }
