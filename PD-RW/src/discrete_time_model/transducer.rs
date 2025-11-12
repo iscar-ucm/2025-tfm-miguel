@@ -39,48 +39,40 @@ impl Transducer {
         }
     }
 
-    pub fn get_q_error_history(&self) -> Vec<Quaternion> {
-        self.q_error_history.clone()
+    pub fn get_q_error_history(&self) -> &[Quaternion] {
+        self.q_error_history.as_slice()
     }
 
-    pub fn get_w_history(&self) -> Vec<Vec3> {
-        self.w_history.clone()
+    pub fn get_w_history(&self) -> &[Vec3] {
+        self.w_history.as_slice()
     }
 
-    pub fn get_rw_speeds_history(&self) -> Vec<Vec3> {
-        self.rw_speeds_history.clone()
+    pub fn get_rw_speeds_history(&self) -> &[Vec3] {
+        self.rw_speeds_history.as_slice()
     }
 
     pub fn get_q_error_range_with_margin(&self) -> (f64, f64) {
-        let range = self.q_error_range.clone();
+        let range = self.q_error_range;
         let margin = (range.1 - range.0).abs() * self.range_margin;
         (range.0 - margin, range.1 + margin)
     }
 
     pub fn get_w_history_range_with_margin(&self) -> (f64, f64) {
-        let range = self.w_history_range.clone();
+        let range = self.w_history_range;
         let margin = (range.1 - range.0).abs() * self.range_margin;
         (range.0 - margin, range.1 + margin)
     }
 
     pub fn get_rw_speeds_range_with_margin(&self) -> (f64, f64) {
-        let range = self.rw_speeds_history_range.clone();
+        let range = self.rw_speeds_history_range;
         let margin = (range.1 - range.0).abs() * self.range_margin;
         (range.0 - margin, range.1 + margin)
     }
     
     fn update_range(compare: (f64, f64), values: Vec<f64>) -> (f64, f64) {
-        let min_val = values
-            .iter()
-            .cloned()
-            .fold(compare.0, f64::min);
-
-        let max_val = values
-            .iter()
-            .cloned()
-            .fold(compare.1, f64::max);
-
-        (min_val, max_val)
+        values.iter().fold(compare, |(min_v, max_v), &val| {
+            (f64::min(min_v, val), f64::max(max_v, val))
+        })
     }
 }
 
@@ -103,23 +95,23 @@ impl Atomic for Transducer {
         self.sigma -= e;
 
         if !unsafe { self.i_q_error.is_empty() } {
-            if let Some(q_error) = unsafe { self.i_q_error.get_values().first().cloned() } {
-                self.q_error_history.push(q_error.clone());
-                let values = vec![q_error.clone().0.i, q_error.clone().0.j, q_error.clone().0.k];
+            if let Some(q_error) = unsafe { self.i_q_error.get_values().first().copied() } {
+                self.q_error_history.push(q_error);
+                let values = vec![q_error.0.i, q_error.0.j, q_error.0.k];
                 self.q_error_range = Transducer::update_range(self.q_error_range, values);
             }
         }
         if !unsafe { self.i_w.is_empty() } {
-            if let Some(w) = unsafe { self.i_w.get_values().first().cloned() } {
-                self.w_history.push(w.clone());
-                let values = vec![w.clone().0.x, w.clone().0.y, w.clone().0.z];
+            if let Some(w) = unsafe { self.i_w.get_values().first().copied() } {
+                self.w_history.push(w);
+                let values = vec![w.0.x, w.0.y, w.0.z];
                 self.w_history_range = Transducer::update_range(self.w_history_range, values);
             }
         }
         if !unsafe { self.i_rw_speeds.is_empty() } {
-            if let Some(rw_speeds) = unsafe { self.i_rw_speeds.get_values().first().cloned() } {
-                self.rw_speeds_history.push(rw_speeds.clone());
-                let values = vec![rw_speeds.clone().0.x, rw_speeds.clone().0.y, rw_speeds.clone().0.z];
+            if let Some(rw_speeds) = unsafe { self.i_rw_speeds.get_values().first().copied() } {
+                self.rw_speeds_history.push(rw_speeds);
+                let values = vec![rw_speeds.0.x, rw_speeds.0.y, rw_speeds.0.z];
                 self.rw_speeds_history_range = Transducer::update_range(self.rw_speeds_history_range, values);
             }
         }

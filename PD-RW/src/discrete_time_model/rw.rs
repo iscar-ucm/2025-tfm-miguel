@@ -36,7 +36,7 @@ impl RW {
             i_torque: i_t,
             o_h_rw: o_h,
             o_rw_speeds: o_rw,
-            rw_speeds: rw_speeds_initial.clone(),
+            rw_speeds: rw_speeds_initial,
             torque: None,
             // Initial reaction wheel angular momentum
             h_rw: Vec3(i_rw * rw_speeds_initial.0),
@@ -46,7 +46,7 @@ impl RW {
             inertia_rw: i_rw,
             max_speed_rw: m_speed_rw,
             h: h,
-            rw_speeds_dot: Vec3(nalgebra::Vector3::zeros()),
+            rw_speeds_dot: Vec3::default(),
         }
     }
 
@@ -82,8 +82,8 @@ impl Atomic for RW {
     }
 
     fn lambda(&self) {
-        unsafe { self.o_h_rw.add_value(self.h_rw.clone()) };
-        unsafe { self.o_rw_speeds.add_value(self.rw_speeds.clone()) };
+        unsafe { self.o_h_rw.add_value(self.h_rw) };
+        unsafe { self.o_rw_speeds.add_value(self.rw_speeds) };
     }
 
     fn delta_int(&mut self) {
@@ -94,7 +94,7 @@ impl Atomic for RW {
     fn delta_ext(&mut self, e: f64) {
         self.sigma -= e;
 
-        self.torque = unsafe { self.i_torque.get_values().first().cloned() };
+        self.torque = unsafe { self.i_torque.get_values().first().copied() };
         // With the new torque, we can compute the derivatives
         self.compute_derivatives();
         self.sigma = self.time;

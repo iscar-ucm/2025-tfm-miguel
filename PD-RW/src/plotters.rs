@@ -62,7 +62,7 @@ pub fn draw(transducer: &Transducer, total_time: f64) {
 
 fn draw_q_error(
     area: &DrawingArea<BitMapBackend, Shift>,
-    data: Vec<Quaternion>,
+    data: &[Quaternion],
     min_x: f64,
     max_x: f64,
     min_y: f64,
@@ -105,7 +105,7 @@ fn draw_q_error(
 
 fn draw_w_history(
     area: &DrawingArea<BitMapBackend, Shift>,
-    data: Vec<Vec3>,
+    data: &[Vec3],
     min_x: f64,
     max_x: f64,
     min_y: f64,
@@ -144,7 +144,7 @@ fn draw_w_history(
 
 fn draw_rw_speeds_history(
     area: &DrawingArea<BitMapBackend, Shift>,
-    data: Vec<Vec3>,
+    data: &[Vec3],
     min_x: f64,
     max_x: f64,
     min_y: f64,

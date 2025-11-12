@@ -1,7 +1,7 @@
 use nalgebra::{Quaternion as nalgebraQuaternion, Vector3};
 use std::str::FromStr;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Vec3(pub Vector3<f64>);
 
 impl Vec3 {
@@ -12,6 +12,10 @@ impl Vec3 {
             v.y.clamp(min, max),
             v.z.clamp(min, max),
         ))
+    }
+
+    pub fn default() -> Self {
+        Vec3(Vector3::zeros())
     }
 }
 
@@ -42,8 +46,14 @@ impl FromStr for Vec3 {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Quaternion(pub nalgebraQuaternion<f64>);
+
+impl Quaternion{
+    pub fn default() -> Self {
+        Quaternion(nalgebra::Quaternion::identity())
+    }
+}
 
 impl ToString for Quaternion {
     fn to_string(&self) -> String {
@@ -67,11 +77,5 @@ impl FromStr for Quaternion {
         let z = parts[3].parse::<f64>().map_err(|_| ParseQuaternionError)?;
         let q = nalgebra::Quaternion::new(w, x, y, z);
         Ok(Quaternion(q))
-    }
-}
-
-impl From<nalgebraQuaternion<f64>> for Quaternion {
-    fn from(q: nalgebraQuaternion<f64>) -> Self {
-        Quaternion(q)
     }
 }

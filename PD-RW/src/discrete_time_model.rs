@@ -25,7 +25,7 @@ impl DiscreteTimeModel {
         let time = 0.;
         let margin_ratio = 0.1;
         // Target quaternion (identity orientation)
-        let q_target = Quaternion(nalgebra::Quaternion::identity());
+        let q_target = Quaternion::default();
 
         // Proportional gain
         let kp = 0.01;
@@ -84,4 +84,5 @@ impl DiscreteTimeModel {
             transducer_ref: transducer_ptr,
         }
     }
+    
 }

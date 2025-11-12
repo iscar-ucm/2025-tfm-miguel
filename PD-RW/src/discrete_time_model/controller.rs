@@ -72,7 +72,7 @@ impl Atomic for Controller {
 
     fn lambda(&self) {
         // Send the computed torque command
-        if let (Some(q_error), Some(torque)) = (self.q_error.clone(), self.torque.clone()) {
+        if let (Some(q_error), Some(torque)) = (self.q_error, self.torque) {
             unsafe { self.o_qerror.add_value(q_error) };
             unsafe { self.o_torque.add_value(torque) };
         }
@@ -89,10 +89,10 @@ impl Atomic for Controller {
         self.sigma -= e;
         // Receive new current attitude data
         if !unsafe { self.i_w.is_empty() } {
-            self.w = unsafe { self.i_w.get_values().first().cloned() };
+            self.w = unsafe { self.i_w.get_values().first().copied() };
         }
         if !unsafe { self.i_q.is_empty() } {
-            self.q = unsafe { self.i_q.get_values().first().cloned() };
+            self.q = unsafe { self.i_q.get_values().first().copied() };
         }
 
         if !self.w.is_none() && !self.q.is_none() {
@@ -102,8 +102,8 @@ impl Atomic for Controller {
              */
 
             self.q_error = Some(Controller::quaternion_error(
-                self.q.clone().unwrap(),
-                self.q_target.clone(),
+                self.q.unwrap(),
+                self.q_target,
             ));
 
             // 3. Apply PD control law:
