@@ -1,20 +1,47 @@
 use crate::types::{Quaternion, Vec3};
+use nalgebra::{Vector3};
 use xdevs::*;
 
+/// Estado interno del controlador de actitud.
+/// Implementa un control PD en espacio de cuaterniones para un nanosatélite.
 pub struct ControllerState{
+    /// Última velocidad angular recibida.
     w: Option<Vec3>,
+    /// Última actitud recibida.
     q: Option<Quaternion>,
+    /// Torque calculado por el controlador.
     torque: Option<Vec3>,
+    /// Error de actitud calculado.
     q_error: Option<Quaternion>,
+    /// Tiempo hasta próxima activación del controlador.
     sigma: f64,
+    /// Periodo de control.
     time: f64,
+    /// Actitud objetivo (referencia).
     q_target: Quaternion,
+    /// Actitud inicial.
+    q_target_initial: Quaternion,
+    /// Ganancia proporcional inicial (PD).
+    kp_initial: f64,
+    /// Ganancia derivativa inicial (PD).
+    kd_initial: f64,
+    /// Ganancia proporcional actual (PD).
     kp: f64,
+    /// Ganancia derivativa actual (PD).
     kd: f64,
+    /// Saturación máxima del torque (ruedas de reacción).
     max_torque_rw: f64,
 }
 
 impl ControllerState{
+    /// Crea un nuevo ControllerState.
+    ///
+    /// # Argumentos
+    /// * `time` - Periodo de control.
+    /// * `q_target` - Actitud objetivo. (referencia)
+    /// * `kp` - Ganancia proporcional.
+    /// * `kd` - Ganancia derivativa.
+    /// * `max_torque_rw` - Saturación máxima del torque.
     pub fn new(
         time: f64,
         q_target: Quaternion,
@@ -33,8 +60,11 @@ impl ControllerState{
             time: time,
             // # q_target is the desired attitude in quaternion form
             q_target: q_target,
-            kp,
-            kd,
+            q_target_initial: q_target,
+            kp_initial: kp,
+            kd_initial: kd,
+            kp: kp,
+            kd: kd,
             max_torque_rw: max_torque_rw,
         }
     }
@@ -44,7 +74,10 @@ component!{
     ident = Controller,
     input = {
         i_w<Vec3>,
-        i_q<Quaternion>
+        i_q<Quaternion>,
+        i_q_target<Quaternion>,
+        i_kp<f64>,
+        i_kd<f64>,
     },
     output = {
         o_torque<Vec3>,
@@ -54,6 +87,7 @@ component!{
 }
 
 impl Atomic for Controller{
+    /// Tras emitir la señal de control, el sistema vuelve al estado de espera.
     fn delta_int(state: &mut Self::State) {
         // After sending the command, go back to waiting
         state.w = None;
@@ -61,6 +95,15 @@ impl Atomic for Controller{
         state.sigma = f64::INFINITY;
     }
 
+    /// Recibe nuevas medidas del sistema:
+    /// - velocidad angular (`w`).
+    /// - actitud (`q`).
+    ///
+    /// Cuando ambos datos están disponibles:
+    /// 1. Se calcula el error de actitud.
+    /// 2. Se aplica la ley de control PD.
+    /// 3. Se satura el torque.
+    /// 4. Se programa una salida inmediata.
     fn delta_ext(state: &mut Self::State, e: f64, x: &Self::Input) {
         state.sigma -= e;
         // Receive new current attitude data
@@ -69,6 +112,30 @@ impl Atomic for Controller{
         }
         if !x.i_q.is_empty() {
             state.q = x.i_q.get_values().first().copied();
+        }
+        if !x.i_q_target.is_empty() {
+            if let Some(q_target) = x.i_q_target.get_values().first().copied() {
+                state.q_target = q_target;
+            }
+            else{
+                state.q_target = state.q_target_initial;
+            }
+        }
+        if !x.i_kp.is_empty() {
+            if let Some(kp) = x.i_kp.get_values().first().copied() {
+                state.kp = kp;
+            }
+            else{
+                state.kp = state.kp_initial;
+            }
+        }
+        if !x.i_kd.is_empty() {
+            if let Some(kd) = x.i_kd.get_values().first().copied() {
+                state.kd = kd;
+            }
+            else{
+                state.kd = state.kd_initial;
+            }
         }
 
         if !state.w.is_none() && !state.q.is_none() {
@@ -84,19 +151,24 @@ impl Atomic for Controller{
             // 3. Apply PD control law:
             if let (Some(q_error), Some(w)) = (state.q_error.as_ref(), state.w.as_ref()) {
                 // imag() get the vector (x,y,z) (imaginary) part
-                state.torque = Some(Vec3(-state.kp * q_error.0.imag() - state.kd * w.0));
+                //state.torque = Some(Vec3(-state.kp * q_error.0.imag() - state.kd * w.0));
+                // Torque en yaw
+                state.torque = Some(Vec3(Vector3::new(0.0, 0.0, -state.kp * q_error.yaw_from_quaternion() - state.kd * w.0.z)));
             }
 
             // Saturate the control torque
-            if let Some(torque) = &state.torque {
+            /* if let Some(torque) = &state.torque {
                 state.torque = Some(torque.clamp(-state.max_torque_rw, state.max_torque_rw));
-            }
+            } */
 
             // Schedule an immediate output
             state.sigma = state.time;
         }
     }
 
+    /// Envía:
+    /// * El torque de control calculado.
+    /// * El error de actitud asociado.
     fn lambda(state: &Self::State, output: &mut Self::Output) {
         // Send the computed torque command
         if let (Some(q_error), Some(torque)) = (state.q_error, state.torque) {

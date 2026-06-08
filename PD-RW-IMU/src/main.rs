@@ -2,6 +2,7 @@ mod controller;
 mod imu_sw;
 mod rw;
 mod ccu;
+mod dpc;
 mod types;
 
 use crate::{
@@ -9,6 +10,7 @@ use crate::{
     rw::{RW, RWState},
     imu_sw::{IMUSW, IMUSWState},
     ccu::{CCU, CCUState},
+    dpc::{DPC, DPCState},
     types::{Quaternion, Vec3},
 };
 use libm::{cos, sin};
@@ -26,17 +28,20 @@ component! {
         i_w<Vec3>,
     },
     output = {
-        o_q<Quaternion>,
+        o_qerror<Quaternion>,
+        o_torque<Vec3>,
     },
     components = {
         controller: controller::Controller,
         rw: rw::RW,
         ccu: ccu::CCU,
         imu_sw: imu_sw::IMUSW,
+        dpc: dpc::DPC,
     },
     couplings = {
         controller.o_torque -> rw.i_torque,
         controller.o_torque -> imu_sw.i_torque,
+        controller.o_torque -> dpc.i_torque,
 
         rw.o_h_rw -> imu_sw.i_h_rw,
 
@@ -48,7 +53,8 @@ component! {
         ccu.o_w -> controller.i_w,
         ccu.o_q -> controller.i_q,
 
-        controller.o_qerror -> o_q,
+        controller.o_qerror -> o_qerror,
+        dpc.o_torque -> o_torque,
 /*         controller.o_torque -> rw.i_torque,
         controller.o_torque -> imu_sw.i_torque,
 
@@ -98,15 +104,19 @@ fn main() {
     let controller = Controller::new(ControllerState::new(time, q_target, kp, kd, max_torque_rw));
     let rw = RW::new(RWState::new(time, rw_speeds_initial, i_rw, max_speed_rw, h));
     let imusw = IMUSW::new(IMUSWState::new(time, w0, q0, h, i_sat));
-    let ccu = CCU::new(CCUState::new(0.1, time, w0, q0));
-    let discrete_time_model = DiscreteTimeModel::new(controller, rw, ccu, imusw);
+    let ccu = CCU::new(CCUState::new(time, w0, q0));
+    let dpc = DPC::new(DPCState::new(time));
+    let discrete_time_model = DiscreteTimeModel::new(controller, rw, ccu, imusw, dpc);
 
     let mut simulator = Simulator::new(discrete_time_model);
 
     let config = Config::new(0.0, total_time, h, None);
-    simulator.simulate_rt(&config, xdevs::simulator::std::sleep(&config), 
+    simulator.simulate_rt(&config, xdevs::simulator::std::sleep(&config),
     |output| {
-            if let Some(&job) = output.o_q.get_values().last() {
+            if let Some(&job) = output.o_torque.get_values().last() {
+                println!("[G] OUTPUT={:?}", job);
+            }
+            if let Some(&job) = output.o_qerror.get_values().last() {
                 println!("[G] OUTPUT={:?}", job);
             }
         });

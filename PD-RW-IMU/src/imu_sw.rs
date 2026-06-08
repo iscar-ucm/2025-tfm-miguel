@@ -2,20 +2,44 @@ use crate::types::{Quaternion, Vec3};
 use nalgebra::Matrix3;
 use xdevs::*;
 
+/// Estado dinámico del satélite completo (cuerpo rígido + ruedas de reacción).
+///
+/// Modelo:
+/// - Dinámica rotacional 3D del cuerpo rígido.
+/// - Cinemática de cuaterniones.
+/// - Acoplamiento con momentum de reaction wheels.
 pub struct IMUSWState {
+    /// Tiempo hasta próxima integración.
     sigma: f64,
+    /// Periodo de simulación.
     _time: f64,
+    /// Velocidad angular actual.
     w: Vec3,
+    /// Actitud actual.
     q: Quaternion,
+    /// Momento angular de ruedas (entrada externa).
     h_rw: Option<Vec3>,
+    /// Torque aplicado.
     torque: Option<Vec3>,
+    /// Paso de integración.
     h: f64,
+    /// Inercia del satélite.
     i_sat: Matrix3<f64>,
+    /// Derivada de velocidad angular.
     wdot: Vec3,
+    /// Derivada del cuaternión.
     qdot: Quaternion,
 }
 
 impl IMUSWState {
+    /// Crea un nuevo modelo dinámico del satélite.
+    ///
+    /// # Argumentos
+    /// * `time` - Periodo de simulación.
+    /// * `w0` - Velocidad angular inicial.
+    /// * `q0` - Actitud inicial (cuaternión).
+    /// * `h` - Paso de integración numérica.
+    /// * `i_sat` - Matriz de inercia del satélite.
     pub fn new(time: f64, w0: Vec3, q0: Quaternion, h: f64, i_sat: Matrix3<f64>) -> Self {
         Self {
             sigma: time, // Send initial state immediately
@@ -32,6 +56,11 @@ impl IMUSWState {
         }
     }
 
+    /// Calcula las derivadas del sistema dinámico.
+    ///
+    /// Incluye:
+    /// - Dinámica rotacional rígida
+    /// - Cinemática de cuaterniones
     fn compute_derivatives(&mut self) {
         // --- Dynamics ---
         // Skew-symmetric matrix for cross products
@@ -52,6 +81,7 @@ impl IMUSWState {
         self.qdot = Quaternion(0.5 * self.q.0 * omega_q);
     }
 
+    /// Integra el estado del sistema usando Euler explícito.
     fn compute_next_state(&mut self, h: f64) {
         self.w = Vec3(self.w.0 + h * self.wdot.0); // using a simple Euler integration
         self.q = Quaternion(self.q.0 + h * self.qdot.0).normalize(); //using a simple Euler integration
@@ -72,6 +102,7 @@ component! {
 }
 
 impl Atomic for IMUSW {
+    /// Evolución de la dinámica.
     fn delta_int(state: &mut Self::State) {
         // Compute the next state if possible
         if !state.h_rw.is_none() && !state.torque.is_none() {
@@ -82,6 +113,7 @@ impl Atomic for IMUSW {
         state.sigma = state.h
     }
 
+    /// Recepción de nuevas entradas.
     fn delta_ext(state: &mut Self::State, e: f64, x: &Self::Input) {
         state.sigma -= e;
         // An external event is a new h_rw or torque command
@@ -93,6 +125,9 @@ impl Atomic for IMUSW {
         }
     }
 
+    /// Envía:
+    /// * Actitud actual.
+    /// * Velocidad angular.
     fn lambda(state: &Self::State, output: &mut Self::Output) {
         // Send the current attitude and angular velocity
         output.o_q.add_value(state.q).unwrap();

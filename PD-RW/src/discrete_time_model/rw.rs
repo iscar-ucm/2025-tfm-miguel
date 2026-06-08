@@ -2,23 +2,50 @@ use crate::discrete_time_model::types::Vec3;
 use nalgebra::Matrix3;
 use xdevs::modeling::*;
 
+/// Este componente representa la dinámica de las ruedas de reacción utilizadas.
+///
+/// Su función principal es:
+/// - Recibir torque de control.
+/// - Integrar la dinámica de velocidad de las ruedas.
+/// - Actualizar el momento angular generado.
 pub struct RW {
     component: Component,
+    /// Entrada de torque aplicado sobre las ruedas de reacción.
     i_torque: InPort<Vec3>,
+    /// Salida de momento angular de las ruedas.
     o_h_rw: OutPort<Vec3>,
+    /// Salida de velocidades angulares de las ruedas.
     o_rw_speeds: OutPort<Vec3>,
+    /// Velocidades actuales de las ruedas.
     rw_speeds: Vec3,
+    /// Torque recibido desde el controlador.
     torque: Option<Vec3>,
+    /// Momento angular actual de las ruedas.
     h_rw: Vec3,
+    /// Tiempo hasta la próxima actualización.
     sigma: f64,
+    /// Periodo de integración del modelo.
     time: f64,
+    /// Inercia de las ruedas de reacción.
     inertia_rw: Matrix3<f64>,
+    /// Velocidad máxima permitida de las ruedas.
     max_speed_rw: f64,
+    /// Paso de integración (Euler).
     h: f64,
+    /// Derivada de la velocidad de las ruedas (aceleración angular).
     rw_speeds_dot: Vec3,
 }
 
 impl RW {
+    /// Crea un nuevo modelo de ruedas de reacción.
+    ///
+    /// # Argumentos
+    /// * `name` - Nombre del componente.
+    /// * `time` - Periodo de actualización del sistema.
+    /// * `rw_speeds_initial` - Velocidad inicial de las ruedas.
+    /// * `i_rw` - Matriz de inercia de las ruedas.
+    /// * `m_speed_rw` - Velocidad máxima permitida.
+    /// * `h` - Paso de integración numérica.
     pub fn new(
         name: &str,
         time: f64,
@@ -49,7 +76,7 @@ impl RW {
             rw_speeds_dot: Vec3::default(),
         }
     }
-
+    /// Calcula la derivada de la velocidad de las ruedas.
     fn compute_derivatives(&mut self) {
         if let Some(torque) = &self.torque {
             if let Some(inertia_inv) = self.inertia_rw.try_inverse() {
@@ -58,6 +85,12 @@ impl RW {
         }
     }
 
+    /// Integra el estado de las ruedas (Euler explícito).
+    ///
+    /// Actualiza:
+    /// - Velocidades de las ruedas.
+    /// - Saturación de velocidad.
+    /// - Momento angular.
     fn compute_next_state(&mut self, h: f64) {
         // Compute the next state:
         // Calculate the next state of the reaction wheels (Euler integration)
@@ -81,16 +114,21 @@ impl Atomic for RW {
         &mut self.component
     }
 
+    /// Envía:
+    /// - Momento angular de las ruedas.
+    /// - Velocidades actuales.
     fn lambda(&self) {
         unsafe { self.o_h_rw.add_value(self.h_rw) };
         unsafe { self.o_rw_speeds.add_value(self.rw_speeds) };
     }
 
+    /// Actualiza el estado físico del sistema tras la integración.
     fn delta_int(&mut self) {
         self.compute_next_state(self.h);
         self.sigma = f64::INFINITY
     }
 
+    /// Recibe torque desde el controlador y actualiza la dinámica.
     fn delta_ext(&mut self, e: f64) {
         self.sigma -= e;
 
