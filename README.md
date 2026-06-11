@@ -21,19 +21,38 @@ El objetivo del repositorio es desarrollar y validar una arquitectura para un si
 * Comunicación MQTT para telemetría, comandos y monitorización externa;
 * Organización del sistema en capas SIL, HIL, DT y despliegue.
 
-## 📁 Estructura del repositorio
-```text
-2025-tfm-miguel/
-├── PD-RW/             # Simulación ADCS inicial en Rust std
-├── PD-RW-no-std/      # Migración del modelo ADCS a Rust no_std
-├── PD-RW-IMU/         # Librería no_std con modelo ADCS/DT reutilizable
-├── Nanosat/           # Aplicación embebida final sobre ESP32-C6
-├── Bno055/            # Prueba aislada del sensor BNO055 por I2C
-├── bl48250-015/       # Prueba aislada del actuador BL4825O mediante PWM
-├── mqtt/              # Prueba aislada de cliente MQTT en ESP32-C6
-├── GPT/               # Prototipo/experimento adicional de modelado
-└── README.md          # Este documento
-```
+## 🔩 Hardware
+El sistema final se orienta a:
+* ESP32-C6.
+* BNO055 como sensor IMU.
+* BL4825O como actuador.
+* Conexión WiFi hacia un broker Mosquitto.
+* Equipo externo con Node-RED para monitorización.
+
+## 🛠️ Tecnologías
+* Rust.
+* Rust no_std.
+* Cargo.
+* xdevs y xdevs-no-std.
+* esp-hal.
+* esp-rtos.
+* Embassy.
+* embassy-net.
+* esp-radio.
+* rust-mqtt.
+* esp-println.
+* esp-backtrace.
+* nalgebra y libm.
+* BNO055.
+
+## 📚 Orden de lectura
+El repositorio contiene tanto prototipos aislados como integraciones completas. La lectura recomendada es:
+
+1. [`PD-RW`](./PD-RW/): entender el modelo ADCS en simulación software.
+2. [`PD-RW-no-std`](./PD-RW-no-std/): ver la migración hacia `no_std`.
+3. [`PD-RW-IMU`](./PD-RW-IMU/): entender la librería reutilizable ADCS/DT.
+4. [`Bno055`](./Bno055/), [`bl48250-015`](./bl48250-015/) y [`mqtt`](./mqtt/): revisar validaciones aisladas de hardware/comunicación.
+5. [`Nanosat`](./Nanosat/): estudiar la integración final sobre ESP32-C6.
 
 ## 🔗 Relación entre subproyectos
 ### 🧪 `PD-RW`
@@ -137,20 +156,20 @@ La capa HIL traslada la lógica validada en SIL hacia una placa ESP32-C6 program
 Respecto a SIL, el modelo deja de ser completamente cerrado: el `Transducer` deja de formar parte del modelo acoplado y la observación de variables pasa a realizarse mediante salidas externas. Además, se incorporan entradas externas para introducir eventos procedentes del entorno físico o embebido.
 
 En esta capa se comprueba:
-* La compilación, despliegue y ejecución del firmware sobre la ESP32-C6;
-* La sincronización en tiempo real mediante `xdevs-no-std`;
-* La lectura del sensor BNO055 y su introducción en el modelo mediante el `input_handler`;
-* La propagación del torque de control mediante el `output_handler`;
+* La compilación, despliegue y ejecución del firmware sobre la ESP32-C6.
+* La sincronización en tiempo real mediante `xdevs-no-std`.
+* La lectura del sensor BNO055 y su introducción en el modelo mediante el `input_handler`.
+* La propagación del torque de control mediante el `output_handler`.
 * La coexistencia entre tareas asíncronas, lectura de periféricos y ejecución del modelo.
 
 ### 🌐 DT: Digital Twin
 La capa DT reorganiza el modelo validado en HIL para representar una arquitectura físico-digital más completa. En esta etapa, el modelo ejecutable conserva un papel central dentro del lazo de funcionamiento, recibiendo información del sistema físico, actualizando la lógica de control y generando salidas que pueden propagarse hacia el entorno.
 
 El modelo acoplado PD-RW de esta capa incorpora:
-* `Controller`, que mantiene la ley de control PD;
-* `RW`, que representa en software el comportamiento de las ruedas de reacción;
-* `IMUSW`, que mantiene una representación software de la actitud y la velocidad angular;
-* `CCU`, que selecciona la fuente de realimentación según la modalidad de funcionamiento;
+* `Controller`, que mantiene la ley de control PD.
+* `RW`, que representa en software el comportamiento de las ruedas de reacción.
+* `IMUSW`, que mantiene una representación software de la actitud y la velocidad angular.
+* `CCU`, que selecciona la fuente de realimentación según la modalidad de funcionamiento.
 * `DPC`, que convierte el torque de control en una señal PWM compatible con la actuación física.
 
 Respecto a HIL, se amplían las entradas y salidas externas del modelo. Además de recibir medidas del sensor BNO055, la capa DT permite modificar la actitud objetivo, ajustar las ganancias `kp` y `kd`, propagar el error de actitud y el torque para monitorización, y enviar el PWM generado hacia la tarea encargada del actuador.
@@ -159,29 +178,13 @@ Respecto a HIL, se amplían las entradas y salidas externas del modelo. Además 
 La capa de pruebas y despliegue extiende el sistema hacia un entorno distribuido básico. Su objetivo no es modificar la lógica principal del modelo, sino comprobar que la arquitectura embebida puede publicar telemetría, recibir comandos externos y ser monitorizada durante la ejecución.
 
 En esta capa se incorpora una arquitectura de comunicación mediante MQTT:
-* La ESP32-C6 actúa como cliente MQTT;
-* Mosquitto funciona como broker y centraliza el intercambio de mensajes;
-* Node-RED se utiliza como interfaz de monitorización;
-* Los tópicos de telemetría publican variables como error de actitud, torque, PWM y medidas del sensor;
+* La ESP32-C6 actúa como cliente MQTT.
+* Mosquitto funciona como broker y centraliza el intercambio de mensajes.
+* Node-RED se utiliza como interfaz de monitorización.
+* Los tópicos de telemetría publican variables como error de actitud, torque, PWM y medidas del sensor.
 * Los tópicos de comandos permiten modificar la actitud objetivo, las ganancias del controlador, el PWM o el estado de lectura del sensor.
 
 Esta capa permite comprobar que el modelo embebido no funciona de forma aislada, sino conectado con procesos externos de supervisión y configuración.
-
-## 🛠️ Tecnologías principales
-* Rust.
-* Rust no_std.
-* Cargo.
-* xdevs y xdevs-no-std.
-* esp-hal.
-* esp-rtos.
-* Embassy.
-* embassy-net.
-* esp-radio.
-* rust-mqtt.
-* esp-println.
-* esp-backtrace.
-* nalgebra y libm.
-* BNO055.
 
 ## ▶️ Ejecución básica
 Cada subproyecto es un crate independiente. Para ejecutar uno de ellos:
@@ -237,23 +240,19 @@ Estos valores definen la red WiFi y la dirección del broker Mosquitto.
 * `/TFM/PWM`;
 * `/TFM/Kp_Kd`.
 
-## 🔩 Hardware
-El sistema final se orienta a:
-
-* ESP32-C6;
-* BNO055 como sensor IMU;
-* BL4825O como actuador;
-* Conexión WiFi hacia un broker Mosquitto;
-* Equipo externo con Node-RED para monitorización.
-
-## 📚 Estado del repositorio
-El repositorio contiene tanto prototipos aislados como integraciones completas. La lectura recomendada es:
-
-1. `PD-RW`: entender el modelo ADCS en simulación software.
-2. `PD-RW-no-std`: ver la migración hacia `no_std`.
-3. `PD-RW-IMU`: entender la librería reutilizable ADCS/DT.
-4. `Bno055`, `bl48250-015` y `mqtt`: revisar validaciones aisladas de hardware/comunicación.
-5. `Nanosat`: estudiar la integración final sobre ESP32-C6.
+## 📁 Estructura del repositorio
+```text
+2025-tfm-miguel/
+├── PD-RW/             # Simulación ADCS inicial en Rust std
+├── PD-RW-no-std/      # Migración del modelo ADCS a Rust no_std
+├── PD-RW-IMU/         # Librería no_std con modelo ADCS/DT reutilizable
+├── Nanosat/           # Aplicación embebida final sobre ESP32-C6
+├── Bno055/            # Prueba aislada del sensor BNO055 por I2C
+├── bl48250-015/       # Prueba aislada del actuador BL4825O mediante PWM
+├── mqtt/              # Prueba aislada de cliente MQTT en ESP32-C6
+├── GPT/               # Prototipo/experimento adicional de modelado
+└── README.md          # Este documento
+```
 
 ## 📌 Referencias
 * [Tutorial de Rust no-std para ESP32](https://esp32.implrust.com/index.html).
