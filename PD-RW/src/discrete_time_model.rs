@@ -2,6 +2,7 @@ use crate::discrete_time_model::types::{Quaternion, Vec3};
 use nalgebra::{Matrix3, Vector3};
 use xdevs::modeling::*;
 
+// Componentes del sistema ADCS.
 mod controller;
 mod rw;
 mod satellite_dynamics;
@@ -13,12 +14,26 @@ use rw::RW;
 use satellite_dynamics::SatelliteDynamics;
 use transducer::Transducer;
 
+/// Modelo completo de simulación en tiempo discreto del sistema ADCS.
+///
+/// Este modelo integra todos los subsistemas:
+/// - Controlador de actitud.
+/// - Ruedas de reacción.
+/// - Dinámica del satélite.
+/// - Transductor de monitoreo.
 pub struct DiscreteTimeModel {
+    /// Sistema acoplado principal (DEVS coupled model).
     pub(crate) coupled: Coupled,
+    /// Referencia al transductor (para análisis externo).
     pub transducer_ref: *const Transducer,
 }
 
 impl DiscreteTimeModel {
+    /// Crea el modelo completo del ADCS.
+    ///
+    /// # Argumentos
+    /// * `name` - Nombre del sistema.
+    /// * `h` - Paso de integración (opcional).
     pub fn new(name: &str, h: Option<f64>) -> Self {
         let mut coupled = Coupled::new(name);
         let h = h.unwrap_or(0.01);

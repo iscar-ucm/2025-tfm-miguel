@@ -1,20 +1,40 @@
 use crate::types::{Quaternion, Vec3};
 use xdevs::*;
 
+/// Estado interno del controlador de actitud.
+/// Implementa un control PD en espacio de cuaterniones para un nanosatélite.
 pub struct ControllerState{
+    /// Última velocidad angular recibida.
     w: Option<Vec3>,
+    /// Última actitud recibida.
     q: Option<Quaternion>,
+    /// Torque calculado por el controlador.
     torque: Option<Vec3>,
+    /// Error de actitud calculado.
     q_error: Option<Quaternion>,
+    /// Tiempo hasta próxima activación del controlador.
     sigma: f64,
+    /// Periodo de control.
     time: f64,
+    /// Actitud objetivo (referencia).
     q_target: Quaternion,
+    /// Ganancia proporcional (PD).
     kp: f64,
+    /// Ganancia derivativa (PD).
     kd: f64,
+    /// Saturación máxima del torque (ruedas de reacción).
     max_torque_rw: f64,
 }
 
 impl ControllerState{
+    /// Crea un nuevo ControllerState.
+    ///
+    /// # Argumentos
+    /// * `time` - Periodo de control.
+    /// * `q_target` - Actitud objetivo. (referencia)
+    /// * `kp` - Ganancia proporcional.
+    /// * `kd` - Ganancia derivativa.
+    /// * `max_torque_rw` - Saturación máxima del torque.
     pub fn new(
         time: f64,
         q_target: Quaternion,
@@ -38,7 +58,15 @@ impl ControllerState{
             max_torque_rw: max_torque_rw,
         }
     }
-    // Calculates the error quaternion
+
+    /// Calcula el error de actitud en cuaterniones.
+    ///
+    /// # Argumentos
+    /// * `q_current` - actitud actual.
+    /// * `q_target` - actitud deseada.
+    ///
+    /// # Returns
+    /// Cuaternión de error. (q_error = q_current * conjugado(q_target))
     fn quaternion_error(q_current: Quaternion, q_target: Quaternion) -> Quaternion {
         Quaternion(q_current.0 * q_target.0.conjugate())
     }
@@ -58,6 +86,7 @@ component!{
 }
 
 impl Atomic for Controller{
+    /// Tras emitir la señal de control, el sistema vuelve al estado de espera.
     fn delta_int(state: &mut Self::State) {
         // After sending the command, go back to waiting
         state.w = None;
@@ -65,6 +94,15 @@ impl Atomic for Controller{
         state.sigma = f64::INFINITY;
     }
 
+    /// Recibe nuevas medidas del sistema:
+    /// - velocidad angular (`w`).
+    /// - actitud (`q`).
+    ///
+    /// Cuando ambos datos están disponibles:
+    /// 1. Se calcula el error de actitud.
+    /// 2. Se aplica la ley de control PD.
+    /// 3. Se satura el torque.
+    /// 4. Se programa una salida inmediata.
     fn delta_ext(state: &mut Self::State, e: f64, x: &Self::Input) {
         state.sigma -= e;
         // Receive new current attitude data
@@ -101,6 +139,9 @@ impl Atomic for Controller{
         }
     }
 
+    /// Envía:
+    /// * El torque de control calculado.
+    /// * El error de actitud asociado.
     fn lambda(state: &Self::State, output: &mut Self::Output) {
         // Send the computed torque command
         if let (Some(q_error), Some(torque)) = (state.q_error, state.torque) {

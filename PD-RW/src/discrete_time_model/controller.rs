@@ -1,25 +1,58 @@
 use crate::discrete_time_model::types::{Quaternion, Vec3};
 use xdevs::modeling::*;
 
+/// Este componente implementa un controlador tipo PD en espacio de cuaterniones
+/// para estabilización y seguimiento de actitud.
+///
+/// Recibe:
+/// - Velocidad angular (`w`).
+/// - Actitud actual (`q`).
+///
+/// Produce:
+/// - Torque de reacción (`torque`).
+/// - Error de actitud (`q_error`).
 pub struct Controller {
     component: Component,
+    /// Entrada de velocidad angular del satélite.
     i_w: InPort<Vec3>,
+    /// Entrada de actitud actual (cuaternión).
     i_q: InPort<Quaternion>,
+    /// Salida de torque de control.
     o_torque: OutPort<Vec3>,
+    /// Salida del error de actitud.
     o_qerror: OutPort<Quaternion>,
+    /// Última velocidad angular recibida.
     w: Option<Vec3>,
+    /// Última actitud recibida.
     q: Option<Quaternion>,
+    /// Torque calculado por el controlador.
     torque: Option<Vec3>,
+    /// Error de actitud calculado.
     q_error: Option<Quaternion>,
+    /// Tiempo hasta próxima activación del controlador.
     sigma: f64,
+    /// Periodo de control.
     time: f64,
+    /// Actitud objetivo (referencia).
     q_target: Quaternion,
+    /// Ganancia proporcional (PD).
     kp: f64,
+    /// Ganancia derivativa (PD).
     kd: f64,
+    /// Saturación máxima del torque (ruedas de reacción).
     max_torque_rw: f64,
 }
 
 impl Controller {
+    /// Crea un nuevo controlador de actitud.
+    ///
+    /// # Argumentos
+    /// * `name` - Nombre del componente.
+    /// * `time` - Periodo de control.
+    /// * `q_target` - Actitud objetivo. (referencia)
+    /// * `kp` - Ganancia proporcional.
+    /// * `kd` - Ganancia derivativa.
+    /// * `max_torque_rw` - Saturación máxima del torque.
     pub fn new(
         name: &str,
         time: f64,
@@ -55,7 +88,14 @@ impl Controller {
         }
     }
 
-    // Calculates the error quaternion
+    /// Calcula el error de actitud en cuaterniones.
+    ///
+    /// # Argumentos
+    /// * `q_current` - actitud actual.
+    /// * `q_target` - actitud deseada.
+    ///
+    /// # Returns
+    /// Cuaternión de error. (q_error = q_current * conjugado(q_target))
     fn quaternion_error(q_current: Quaternion, q_target: Quaternion) -> Quaternion {
         Quaternion(q_current.0 * q_target.0.conjugate())
     }
@@ -70,6 +110,9 @@ impl Atomic for Controller {
         &mut self.component
     }
 
+    /// Envía:
+    /// - El torque de control calculado.
+    /// - El error de actitud asociado.
     fn lambda(&self) {
         // Send the computed torque command
         if let (Some(q_error), Some(torque)) = (self.q_error, self.torque) {
@@ -78,13 +121,22 @@ impl Atomic for Controller {
         }
     }
 
+    /// Tras emitir la señal de control, el sistema vuelve al estado de espera.
     fn delta_int(&mut self) {
-        // After sending the command, go back to waiting
         self.w = None;
         self.q = None;
         self.sigma = f64::INFINITY;
     }
 
+    /// Recibe nuevas medidas del sistema:
+    /// - velocidad angular (`w`).
+    /// - actitud (`q`).
+    ///
+    /// Cuando ambos datos están disponibles:
+    /// 1. Se calcula el error de actitud.
+    /// 2. Se aplica la ley de control PD.
+    /// 3. Se satura el torque.
+    /// 4. Se programa una salida inmediata.
     fn delta_ext(&mut self, e: f64) {
         self.sigma -= e;
         // Receive new current attitude data

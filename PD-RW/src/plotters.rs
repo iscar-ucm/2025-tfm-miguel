@@ -8,8 +8,15 @@ use crate::discrete_time_model::{
     types::{Quaternion, Vec3},
 };
 
+/// Ruta de salida de la imagen generada.
 const OUT_FILE_NAME: &str = "images/Simulation Result.png";
 
+/// Genera las gráficas de la simulación ADCS.
+///
+/// Muestra tres señales principales:
+/// - Error de actitud (cuaternión).
+/// - Velocidad angular del satélite.
+/// - Velocidades de ruedas de reacción.
 pub fn draw(transducer: &Transducer, total_time: f64) {
     let root = BitMapBackend::new(OUT_FILE_NAME, (1600, 1200)).into_drawing_area();
     root.fill(&WHITE).unwrap();
@@ -60,6 +67,9 @@ pub fn draw(transducer: &Transducer, total_time: f64) {
     );
 }
 
+/// Gráfica del error de actitud (cuaternión).
+///
+/// Muestra evolución de las componentes (x,y,z) del error.
 fn draw_q_error(
     area: &DrawingArea<BitMapBackend, Shift>,
     data: &[Quaternion],
@@ -103,6 +113,8 @@ fn draw_q_error(
     draw_series_labels(&mut ctx);
 }
 
+
+/// Gráfica de velocidad angular del satélite.
 fn draw_w_history(
     area: &DrawingArea<BitMapBackend, Shift>,
     data: &[Vec3],
@@ -142,6 +154,7 @@ fn draw_w_history(
     draw_series_labels(&mut ctx);
 }
 
+/// Gráfica de velocidades de ruedas de reacción.
 fn draw_rw_speeds_history(
     area: &DrawingArea<BitMapBackend, Shift>,
     data: &[Vec3],
@@ -181,6 +194,7 @@ fn draw_rw_speeds_history(
     draw_series_labels(&mut ctx);
 }
 
+/// Añade leyenda de series al gráfico.
 fn draw_series_labels<'a>(
     ctx: &mut ChartContext<'a, BitMapBackend<'a>, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
 ) {
@@ -192,6 +206,7 @@ fn draw_series_labels<'a>(
         .unwrap();
 }
 
+/// Configura ejes y rejilla del gráfico.
 fn configure_mesh<'a>(
     ctx: &mut ChartContext<'a, BitMapBackend<'a>, Cartesian2d<RangedCoordf64, RangedCoordf64>>,
     x: &str,
