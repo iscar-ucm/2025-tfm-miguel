@@ -35,19 +35,19 @@ use embassy_net::{Config, Ipv4Address, StackResources, tcp::TcpSocket};
 use static_cell::StaticCell;
 
 #[cfg(feature = "home")]
-const SSID: &str = "DIGIFIBRA-DSC3";
+const SSID: &str = "...";
 
 #[cfg(feature = "home")]
-const PASSWORD: &str = "aKE4hsZpzs";
+const PASSWORD: &str = "...";
 
 #[cfg(feature = "mobile")]
-const SSID: &str = "Xiaomi 15 Pro";
+const SSID: &str = "...";
 
 #[cfg(feature = "mobile")]
-const PASSWORD: &str = "6ws5hkph58t8cct";
+const PASSWORD: &str = "...";
 
 static RADIO_INIT: StaticCell<esp_radio::Controller<'static>> = StaticCell::new();
-const IP_ADDRESS: Ipv4Address = Ipv4Address::new(192, 168, 1, 213);
+const IP_ADDRESS: Ipv4Address = Ipv4Address::new(1, 1, 1, 1);
 const PORT: u16 = 1883;
 
 /// Tarea de red Embassy.

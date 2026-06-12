@@ -118,12 +118,12 @@ Las ruedas de reacción son actuadores internos que generan torque mediante cons
 El momento angular de las ruedas se calcula a partir de:
 
 ```math
-h_{rw} = I_{rw}\omega_{rw}
+h_{rw} = I_{rw} v_{rw}
 ```
 
 donde:
 * $I_{rw}$ es la inercia de la rueda.
-* $\omega_{rw}$ es la velocidad angular.
+* $v_{rw}$ es la velocidad de las ruedas.
 
 
 ## 🧩 Arquitectura del sistema
